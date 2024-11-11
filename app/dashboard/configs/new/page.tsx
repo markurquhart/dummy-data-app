@@ -77,41 +77,44 @@ export default function NewConfigPage() {
 
   const saveConfiguration = async () => {
     try {
-      // Transform fields array to remove the temporary IDs
-      const cleanedFields = fields.map(({ id, ...field }) => field);
+      // Transform fields array to remove the temporary IDs and ensure valid JSON structure
+      const cleanedFields = fields.map(({ id, ...field }) => ({
+        name: field.name || '',
+        type: field.type || 'text',
+        options: field.options || {}
+      }));
   
+      // Create a clean payload object
       const payload = {
-        name: formData.name,
-        description: formData.description,
+        name: formData.name || 'Untitled Configuration',
+        description: formData.description || '',
         fields: cleanedFields,
         destination: selectedDestination ? {
           type: selectedDestination,
-          credentials: {}, // We'll add credentials handling later
-        } : undefined,
+          credentials: {}
+        } : null
       };
   
-      console.log('Saving config with payload:', payload); // Debug log
+      console.log('Sending payload:', JSON.stringify(payload, null, 2));
   
       const response = await fetch('/api/configs', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(payload)
       });
   
+      const data = await response.json();
+  
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save configuration');
+        throw new Error(data.error || 'Failed to save configuration');
       }
   
-      const data = await response.json();
-      console.log('Save successful:', data); // Debug log
-  
+      console.log('Save successful:', data);
       router.push('/dashboard/configs');
     } catch (error) {
-      console.error('Error saving configuration:', error);
-      // TODO: Add proper error notification here
+      console.error('Full error:', error);
       alert('Failed to save configuration: ' + (error as Error).message);
     }
   };

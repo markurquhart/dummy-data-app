@@ -1,39 +1,52 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
 
 export async function POST(req: Request) {
   try {
     const session = await getServerSession();
     
-    if (!session?.user) {
+    if (!session?.user?.email) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    const data = await req.json();
-    const { name, description, fields, destination } = data;
+    // Get user ID from email
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    });
 
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    const data = await req.json();
+    
+    // Create the config with the correct structure
     const config = await prisma.dataConfig.create({
       data: {
-        name,
+        name: data.name,
+        userId: user.id,
         config: {
-          description,
-          fields,
-          destination,
+          description: data.description,
+          fields: data.fields,
+          destination: data.destination,
           status: "active"
         },
-        userId: session.user.id,
       },
     });
 
     return NextResponse.json(config);
+    
   } catch (error) {
-    console.error("Error creating configuration:", error);
+    // Fixed the syntax error in the error response
     return NextResponse.json(
-      { error: "Failed to create configuration" },
+      { error: error instanceof Error ? error.message : "Failed to create configuration" },
       { status: 500 }
     );
   }
@@ -43,21 +56,27 @@ export async function GET(req: Request) {
   try {
     const session = await getServerSession();
     
-    if (!session?.user) {
+    if (!session?.user?.email) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
     const configs = await prisma.dataConfig.findMany({
       where: {
-        userId: session.user.id,
-      },
-      include: {
-        _count: {
-          select: { dataRuns: true }
-        }
+        userId: user.id,
       },
       orderBy: {
         createdAt: 'desc',
@@ -65,8 +84,8 @@ export async function GET(req: Request) {
     });
 
     return NextResponse.json(configs);
+    
   } catch (error) {
-    console.error("Error fetching configurations:", error);
     return NextResponse.json(
       { error: "Failed to fetch configurations" },
       { status: 500 }
