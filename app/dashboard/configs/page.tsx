@@ -2,41 +2,29 @@ import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import prisma from '@/lib/prisma';
-
-interface Config {
-  id: string;
-  name: string;
-  config: {
-    description?: string;
-    fields: Array<{
-      name: string;
-      type: string;
-      options?: any;
-    }>;
-    destination?: {
-      type: string;
-      credentials?: any;
-    };
-  };
-  createdAt: Date;
-  updatedAt: Date;
-  userId: string;
-  dataRuns: {
-    status: string;
-    recordsCount: number;
-  }[];
-}
+import type { Config, DataRun } from '@/types/config';
 
 export default async function ConfigsPage() {
-  const configs: Config[] = await prisma.dataConfig.findMany({
-    include: {
+  const prismaConfigs = await prisma.dataConfig.findMany({
+    select: {
+      id: true,
+      name: true,
+      config: true,
+      userId: true,
+      createdAt: true,
+      updatedAt: true,
       dataRuns: {
         select: {
+          id: true,
+          userId: true,
+          startTime: true,
+          endTime: true,
           status: true,
           recordsCount: true,
+          configId: true
         },
         orderBy: {
-          startTime: 'desc',
+          startTime: 'desc'
         },
         take: 1,
       },
@@ -45,6 +33,9 @@ export default async function ConfigsPage() {
       createdAt: 'desc',
     },
   });
+
+  // Type assertion after we've selected the exact fields we need
+  const configs = prismaConfigs as unknown as (Config & { dataRuns: DataRun[] })[];
   
   return (
     <div className="p-8">
@@ -83,7 +74,7 @@ export default async function ConfigsPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{config.config.fields?.length || 0} fields</div>
+                      <div className="text-sm text-gray-900">{config.config.fields.length} fields</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
@@ -97,7 +88,7 @@ export default async function ConfigsPage() {
                             {config.dataRuns[0].recordsCount} records
                           </div>
                           <div className="text-sm text-gray-500">
-                            {config.dataRuns[0].status}
+                            {formatDistanceToNow(new Date(config.dataRuns[0].startTime), { addSuffix: true })}
                           </div>
                         </div>
                       ) : (

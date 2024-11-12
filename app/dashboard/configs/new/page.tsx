@@ -4,32 +4,22 @@ import { useState } from 'react';
 import { ArrowLeft, Plus, Trash2, Database } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import type { Field, FieldWithId, ConfigData } from '@/types/config';
 
-type FormData = {
+interface FormData {
   name: string;
   description: string;
-  fields: Array<{
-    name: string;
-    type: string;
-    options?: any;
-  }>;
+  fields: Field[];
   destination?: {
     type: string;
     credentials?: any;
   };
-};
-
-type FieldType = {
-  id: string;
-  name: string;
-  type: string;
-  options?: any;
-};
+}
 
 export default function NewConfigPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [fields, setFields] = useState<FieldType[]>([]);
+  const [fields, setFields] = useState<FieldWithId[]>([]);
   const [formData, setFormData] = useState<FormData>({
     name: '',
     description: '',
@@ -50,7 +40,7 @@ export default function NewConfigPage() {
   ];
 
   const addField = () => {
-    const newField = {
+    const newField: FieldWithId = {
       id: `field-${fields.length + 1}`,
       name: '',
       type: fieldTypes[0],
@@ -62,7 +52,7 @@ export default function NewConfigPage() {
     setFields(fields.filter(field => field.id !== id));
   };
 
-  const updateField = (id: string, updates: Partial<FieldType>) => {
+  const updateField = (id: string, updates: Partial<FieldWithId>) => {
     setFields(fields.map(field => 
       field.id === id ? { ...field, ...updates } : field
     ));
@@ -77,44 +67,40 @@ export default function NewConfigPage() {
 
   const saveConfiguration = async () => {
     try {
-      // Transform fields array to remove the temporary IDs and ensure valid JSON structure
-      const cleanedFields = fields.map(({ id, ...field }) => ({
-        name: field.name || '',
-        type: field.type || 'text',
-        options: field.options || {}
-      }));
-  
-      // Create a clean payload object
+      // Transform fields array to remove the temporary IDs
+      const cleanedFields = fields.map(({ id, ...field }) => field);
+
       const payload = {
-        name: formData.name || 'Untitled Configuration',
-        description: formData.description || '',
+        name: formData.name,
+        description: formData.description,
         fields: cleanedFields,
         destination: selectedDestination ? {
           type: selectedDestination,
-          credentials: {}
-        } : null
+          credentials: {}, // We'll add credentials handling later
+        } : undefined,
       };
-  
-      console.log('Sending payload:', JSON.stringify(payload, null, 2));
-  
+
+      console.log('Saving config with payload:', payload);
+
       const response = await fetch('/api/configs', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
-  
-      const data = await response.json();
-  
+
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to save configuration');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save configuration');
       }
-  
+
+      const data = await response.json();
       console.log('Save successful:', data);
+
       router.push('/dashboard/configs');
     } catch (error) {
-      console.error('Full error:', error);
+      console.error('Error saving configuration:', error);
       alert('Failed to save configuration: ' + (error as Error).message);
     }
   };

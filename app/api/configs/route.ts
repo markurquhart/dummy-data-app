@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
+import type { Config, ConfigData } from "@/types/config";
 
 export async function POST(req: Request) {
   try {
@@ -13,7 +14,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get user ID from email
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }
     });
@@ -27,7 +27,6 @@ export async function POST(req: Request) {
 
     const data = await req.json();
     
-    // Create the config with the correct structure
     const config = await prisma.dataConfig.create({
       data: {
         name: data.name,
@@ -37,14 +36,13 @@ export async function POST(req: Request) {
           fields: data.fields,
           destination: data.destination,
           status: "active"
-        },
+        } as ConfigData,
       },
-    });
+    }) as Config;
 
     return NextResponse.json(config);
     
   } catch (error) {
-    // Fixed the syntax error in the error response
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to create configuration" },
       { status: 500 }
@@ -81,7 +79,7 @@ export async function GET(req: Request) {
       orderBy: {
         createdAt: 'desc',
       },
-    });
+    }) as Config[];
 
     return NextResponse.json(configs);
     

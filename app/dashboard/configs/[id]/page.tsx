@@ -3,42 +3,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { ArrowLeft, Play, Clock, Database } from 'lucide-react';
 import Link from 'next/link';
 import prisma from '@/lib/prisma';
-
-// Add these type definitions at the top of the file
-interface ConfigField {
-  name: string;
-  type: string;
-  options?: Record<string, any>;
-}
-
-interface Destination {
-  type: string;
-  credentials?: Record<string, any>;
-}
-
-interface ConfigData {
-  description?: string;
-  fields: ConfigField[];
-  destination?: Destination;
-  status?: string;
-}
-
-interface DataRun {
-  id: string;
-  startTime: Date;
-  endTime?: Date;
-  status: string;
-  recordsCount: number;
-}
-
-interface Config {
-  id: string;
-  name: string;
-  config: ConfigData;
-  createdAt: Date;
-  updatedAt: Date;
-  dataRuns: DataRun[];
-}
+import type { Config, DataRun } from '@/types/config';
 
 export default async function ConfigDetailsPage({
   params
@@ -55,7 +20,7 @@ export default async function ConfigDetailsPage({
         take: 5,
       }
     }
-  }) as Config | null;  // Add type assertion here
+  }) as (Config & { dataRuns: DataRun[] }) | null;
 
   if (!config) {
     notFound();
